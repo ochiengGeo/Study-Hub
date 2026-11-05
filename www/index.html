@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="StudyHub">
+  <title>StudyHub</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <script>
+  /* Apply the saved theme before the first paint, so there's no flash of the wrong colours. Plain ES5. */
+  (function () {
+    try {
+      var t = JSON.parse(localStorage.getItem('studyhub-theme') || '{}'), r = document.documentElement;
+      if (t.mode && t.mode !== 'auto') r.setAttribute('data-theme', t.mode);
+      if (t.accent && t.accent !== 'indigo') r.setAttribute('data-accent', t.accent);
+    } catch (e) {}
+  })();
+  </script>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="style.css">
+  <script>
+  /* Early safety net, written in plain ES5 so it runs on ANY browser, even ones too old for the app.
+     It shows errors on screen and, on the dev server (serve.py), reports them to the laptop terminal. */
+  (function () {
+    var dev = !window.Capacitor && /^(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname);
+    function report(kind, msg) {
+      if (!dev) return;
+      try {
+        var x = new XMLHttpRequest();
+        x.open('POST', '/__diag', true);
+        x.setRequestHeader('Content-Type', 'application/json');
+        x.send(JSON.stringify({ kind: kind, msg: String(msg).slice(0, 3000), ua: navigator.userAgent,
+          screen: window.innerWidth + 'x' + window.innerHeight + ' @' + window.devicePixelRatio + 'x' }));
+      } catch (e) {}
+    }
+    function show(msg) {
+      var box = document.getElementById('fatal');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'fatal';
+        box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;background:#b91c1c;color:#fff;padding:10px 12px;border-radius:10px;font:13px/1.4 monospace;white-space:pre-wrap;max-height:40vh;overflow:auto';
+        box.onclick = function () { box.parentNode.removeChild(box); };
+        (document.body || document.documentElement).appendChild(box);
+        box.appendChild(document.createTextNode('(tap to hide)\n'));
+      }
+      box.appendChild(document.createTextNode(msg + '\n'));
+    }
+    window.__showError = show;
+    window.addEventListener('error', function (e) {
+      var t = e.target;
+      if (t && t !== window && t.closest && t.closest('#viewer, #cropper')) return;   // a picture inside a document, not the app
+      if (t && t !== window && (t.src || t.href)) { var lm = 'Could not load ' + (t.src || t.href); show(lm); report('load', lm); return; }
+      var m = (e.message || 'Error') + ' (' + String(e.filename || '').split('/').pop() + ':' + e.lineno + ')';
+      show('Something broke: ' + m); report('error', m);
+    }, true);
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e.reason, m = (r && (r.stack || r.message)) || String(r);
+      show('Something broke: ' + m); report('rejection', m);
+    });
+    var ok = true;
+    try { new Function('var a = {}; return a?.b ?? 1'); } catch (e) { ok = false; }
+    report('hello', JSON.stringify({
+      modernJS: ok,
+      colorMix: !!(window.CSS && CSS.supports && CSS.supports('color', 'color-mix(in srgb, red 50%, blue)')),
+      indexedDB: !!window.indexedDB,
+      secure: !!window.isSecureContext
+    }));
+    if (!ok) document.addEventListener('DOMContentLoaded', function () {
+      show('This browser is too old for StudyHub. Update Chrome from the Play Store, or open the link in an up-to-date browser.');
+    });
+  })();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn menu-btn" data-action="menu" aria-label="Open menu">
+      <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      <i class="attn hidden" id="menuAttn"></i>
+    </button>
+    <h1 id="title">Today</h1>
+    <button class="icon-btn sync-btn" id="syncBtn" data-action="sync" aria-label="Sync with laptop">
+      <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 1-14.3 4.9M4 12A8 8 0 0 1 18.3 7.1"/><path d="M18.5 3v4.3h-4.3M5.5 21v-4.3h4.3"/></svg>
+      <i class="sync-dot hidden" id="syncDot"></i>
+    </button>
+    <button class="icon-btn theme-btn" data-action="theme" aria-label="Change theme">
+      <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.2-1.8l-.5-1c-.5-1 .2-2.2 1.3-2.2H17a4 4 0 0 0 4-4c0-5-4-9-9-9z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/></svg>
+    </button>
+  </header>
+
+  <!-- Sidebar: slides in on phones, always visible on wide screens -->
+  <div id="drawer" class="drawer">
+    <div class="drawer-scrim" data-action="menu-close"></div>
+    <aside class="drawer-panel" aria-label="Menu">
+      <div class="brand"><img src="icons/icon.svg" alt="">StudyHub</div>
+
+      <nav>
+        <button class="dnav" data-action="tab" data-tab="today">
+          <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Today
+        </button>
+        <button class="dnav" data-action="tab" data-tab="timetable">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Timetable<b class="nb hidden" id="nb-timetable"></b>
+        </button>
+        <button class="dnav" data-action="tab" data-tab="deadlines">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Deadlines<b class="nb hidden" id="nb-deadlines"></b>
+        </button>
+        <button class="dnav" data-action="tab" data-tab="exams">
+          <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3z"/><path d="m8.5 13 2.5 2.5L16 10"/></svg>Exams &amp; CATs<b class="nb hidden" id="nb-exams"></b>
+        </button>
+        <button class="dnav" data-action="tab" data-tab="cards">
+          <svg viewBox="0 0 24 24"><rect x="6" y="3" width="15" height="12" rx="2"/><path d="M3 8v11a2 2 0 0 0 2 2h11"/></svg>Flashcards<b class="nb hidden" id="nb-cards"></b>
+        </button>
+        <button class="dnav" data-action="tab" data-tab="ask">
+          <svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>Ask AI
+        </button>
+        <button class="dnav" data-action="tab" data-tab="notes">
+          <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Notes &amp; files<b class="nb hidden" id="nb-notes"></b>
+        </button>
+      </nav>
+
+      <div class="dsep">Quick add</div>
+      <button class="dnav small" data-action="quick-add" data-what="class">＋ Class</button>
+      <button class="dnav small" data-action="quick-add" data-what="deadline">＋ Deadline</button>
+      <button class="dnav small" data-action="quick-add" data-what="exam">＋ Exam / CAT</button>
+      <button class="dnav small" data-action="quick-add" data-what="card">＋ Flashcard</button>
+      <button class="dnav small" data-action="pick-photo">📷 Board photo</button>
+
+      <div class="dsep">More</div>
+      <button class="dnav small" data-action="calendar-export">📅 Add timetable to phone calendar</button>
+      <button class="dnav small" data-action="sync-settings">🔄 Sync with laptop</button>
+      <button class="dnav small" data-action="theme">🎨 Theme</button>
+      <button class="dnav small" data-action="settings">⚙️ Settings &amp; backup</button>
+
+      <div class="dfoot">Your data stays on this device.</div>
+    </aside>
+  </div>
+
+  <main id="view" aria-live="polite"></main>
+
+  <div id="sheet" class="sheet hidden">
+    <div class="sheet-panel" role="dialog" aria-modal="true"></div>
+  </div>
+
+  <div id="viewer" class="viewer hidden" role="dialog" aria-modal="true" aria-label="PDF viewer">
+    <div class="vbar">
+      <button data-action="close-viewer" aria-label="Close">✕</button>
+      <div class="grow" style="min-width:0"><div class="vtitle"></div><div class="vcount"></div></div>
+      <button data-action="viewer-ask" title="Ask AI about this page">✨ Ask</button>
+      <button data-action="viewer-share">Share</button>
+      <button data-action="viewer-open" aria-label="Open in another app">↗</button>
+    </div>
+    <div class="pages"></div>
+  </div>
+
+  <div id="alertBanner" class="alert-banner hidden" role="alert"></div>
+  <div id="toast" role="status"></div>
+
+  <!-- File pickers live outside the redrawn page: on phones the picker hides the page, and a redraw
+       when you come back must not throw away the input that is about to receive your files. -->
+  <input type="file" id="pickFiles" multiple hidden>
+  <input type="file" id="pickPhoto" accept="image/*" capture="environment" hidden>
+  <input type="file" id="pickBackup" accept="application/json,.json" hidden>
+
+  <script src="vendor/katex/katex.min.js"></script>
+  <script src="shared.js"></script>
+  <script src="vendor/capacitor.js"></script>
+  <script src="native.js"></script>
+  <script src="vault.js"></script>
+  <script src="app.js"></script>
+  <script src="timetable.js"></script>
+  <script src="alerts.js"></script>
+  <script src="reminders.js"></script>
+  <script src="files.js"></script>
+  <script src="office.js"></script>
+  <script src="examdates.js"></script>
+  <script src="sync.js"></script>
+  <script src="aicards.js"></script>
+  <script src="exams.js"></script>
+  <script src="crop.js"></script>
+  <script src="askai.js"></script>
+  <script src="nightcards.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

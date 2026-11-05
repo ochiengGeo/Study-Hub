@@ -1,0 +1,5 @@
+pptx-preview 1.0.7 (npm, ISC; free for personal and commercial use, source closed)
+docx-preview 0.4.1 (Apache-2.0)
+jszip 3.10.1 (MIT)
+rtf.js 3.0.9 WMFJS/EMFJS bundles (MIT)
+  patched: pptx-preview.umd.js picture renderer (zr) now applies rot/flipH/flipV (search 'studyhub:')

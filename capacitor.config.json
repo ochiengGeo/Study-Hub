@@ -1,0 +1,30 @@
+{
+  "appId": "com.studyhub.app",
+  "appName": "StudyHub",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#0b1020",
+    "allowMixedContent": true
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "style": "DEFAULT"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_studyhub",
+      "iconColor": "#6366f1"
+    },
+    "BackgroundRunner": {
+      "label": "com.studyhub.app.nightcards",
+      "src": "runners/nightcards.js",
+      "event": "nightCards",
+      "repeat": true,
+      "interval": 60,
+      "autoStart": true
+    }
+  },
+  "server": {
+    "cleartext": true
+  }
+}
