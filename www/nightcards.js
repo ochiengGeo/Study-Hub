@@ -235,9 +235,13 @@ async function nightCollect({ quiet = false } = {}) {
   if (!BR) return 0;
   let r;
   try { r = await nightCall('collect'); } catch (e) { console.warn('night collect', e); return 0; }
+  const before = JSON.stringify(nightState);
   nightState = r?.state || nightState;
   const results = r?.results || [];
-  if (!results.length) return 0;
+  if (!results.length) {
+    if (JSON.stringify(nightState) !== before && state.tab === 'cards' && !sheetOpen() && !state.review) render();
+    return 0;
+  }
   const tombs = new Set((await dbAll('tombs')).map((t) => t.id));
   const pos = lsGet(NIGHT_POS_LS, {});
   const meta = lsGet(NIGHT_JOBS_LS, {});
@@ -273,11 +277,55 @@ async function nightCollect({ quiet = false } = {}) {
 // ---------------------------------------------------------------------
 // UI: a row in the Flashcards tab and its sheet
 // ---------------------------------------------------------------------
+const NIGHT_STALE_MS = 12 * 3600 * 1000;   // Android wakes the runner about hourly; 12 h without one = blocked
+
+/** "today 03:12", "yesterday 03:12", "Thu 03:12", "4 Nov 03:12" */
+function nightWhen(ms) {
+  const d = new Date(ms), t = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(ms).setHours(0, 0, 0, 0)) / DAY);
+  if (days === 0) return `today ${t}`;
+  if (days === 1) return `yesterday ${t}`;
+  if (days < 7) return `${d.toLocaleDateString([], { weekday: 'short' })} ${t}`;
+  return `${d.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${t}`;
+}
+
+/** Is Android really running the nightly job? { batch, check, warn } (text), or null when it's off. */
+function nightHealth() {
+  if (!BR || !aiKey() || !nightCfg().on) return null;
+  const st = nightState || {}, now = Date.now();
+  const b = st.lastBatch;
+  const batch = b ? `Last batch ${nightWhen(b.at)} · ${b.total} card${b.total === 1 ? '' : 's'}${b.manual ? ' (made by hand)' : ''}`
+    : 'No nightly batch yet';
+  let check = '', warn = '';
+  if (st.wake) {
+    if (now - st.wake.at > NIGHT_STALE_MS) warn = `Android hasn't run it since ${nightWhen(st.wake.at)}`;
+    else check = `Last check ${timeAgo(st.wake.at)} (${st.wake.did})`;
+  } else if (st.since && now - st.since > 3 * 3600 * 1000) {
+    warn = `Android hasn't run it once since ${nightWhen(st.since)}`;
+  } else {
+    check = 'Waiting for Android\'s first check (about hourly)';
+  }
+  return { batch, check, warn };
+}
+
 function nightPanel() {
   if (!BR) return '';
   const cfg = nightCfg();
-  const sub = !aiKey() ? 'Needs a Gemini key (Settings → Ask AI)' : !cfg.on ? 'Off' : `Every week, at night (${cfg.from}–${cfg.to} am) · from your downloaded notes`;
-  return `<button class="nudge" data-action="night-sheet">🌙 <span><b>Nightly cards on this phone</b><br><span class="small muted">${esc(sub)}</span></span>${ICON.chevron}</button>`;
+  const h = nightHealth();
+  const sub = !aiKey() ? 'Needs a Gemini key (Settings → Ask AI)' : !cfg.on ? 'Off'
+    : h && nightState?.lastBatch ? h.batch : `Every week, at night (${cfg.from}–${cfg.to} am) · from your downloaded notes`;
+  const warn = h?.warn ? `<br><span class="small" style="color:var(--red)">⚠️ ${esc(h.warn)}: set Battery to Unrestricted</span>` : '';
+  return `<button class="nudge" data-action="night-sheet">🌙 <span><b>Nightly cards on this phone</b><br><span class="small muted">${esc(sub)}</span>${warn}</span>${ICON.chevron}</button>`;
+}
+
+function nightStatusCard() {
+  const h = nightHealth();
+  if (!h) return '';
+  return `<div class="card" style="margin-bottom:12px"><div class="small">
+    <b>${esc(h.batch)}</b>${nightState?.lastBatch?.decks?.length ? `<br><span class="muted">${esc(nightState.lastBatch.decks.join(', '))}</span>` : ''}<br>
+    ${h.warn ? `<span style="color:var(--red)">⚠️ ${esc(h.warn)}. Samsung's battery saving is probably stopping it: Settings → Apps → StudyHub → Battery → <b>Unrestricted</b>.</span>`
+      : `<span class="muted">${esc(h.check)}</span>`}
+  </div></div>`;
 }
 
 async function nightSheet() {
@@ -311,7 +359,7 @@ function nightDraw() {
   };
   el.innerHTML = `
     <p class="muted small" style="margin-top:-8px">Once a week, at night while you're not using the phone, StudyHub sends each unit's next pages of notes to Google's Gemini and adds up to ${NIGHT_PER_WEEK} new cards to that unit's deck. You get a notification when they're ready. A unit is skipped in a week it already got AI cards (e.g. from the laptop).</p>
-    ${aiKey() ? '' : '<div class="card" style="margin-bottom:12px"><div class="small">🔑 <b>Add your Gemini key first</b> in Settings → Ask AI.</div></div>'}
+    ${aiKey() ? nightStatusCard() : '<div class="card" style="margin-bottom:12px"><div class="small">🔑 <b>Add your Gemini key first</b> in Settings → Ask AI.</div></div>'}
     <label class="checkline"><input type="checkbox" data-action-change="night-on" ${cfg.on ? 'checked' : ''}> Make new cards every week at night</label>
     <label class="field"><span>Night window</span><select data-action-change="night-window">
       ${[[0, 5], [1, 6], [2, 7], [23, 5]].map(([a, b]) => `<option value="${a}-${b}" ${cfg.from === a && cfg.to === b ? 'selected' : ''}>${a === 0 ? 12 : a > 12 ? a - 12 : a} ${a >= 12 ? 'pm' : 'am'} – ${b} am</option>`).join('')}

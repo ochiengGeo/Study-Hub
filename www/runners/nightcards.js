@@ -10,7 +10,9 @@
  * The app adds the cards to your decks the next time it opens (and sync takes them to the laptop).
  *
  * KV keys:  cfg (settings + key + models)  jobs (prepared units)  results (cards waiting for the app)
- *           state (per unit: last run, cards added, model, error; per model: resting until)
+ *           state (per unit: last run, cards added, model, error; per model: resting until;
+ *                  wake: Android's last wake-up and what it did; lastNight: last wake-up inside
+ *                  the night window; lastBatch: last cards made; since: first hand-over from the app)
  */
 
 const API = 'https://generativelanguage.googleapis.com/v1beta';
@@ -127,8 +129,12 @@ async function work(force, only) {
   }
 
   const made = out.ran.filter((r) => r.added);
+  const total = made.reduce((n, r) => n + r.added, 0);
+  if (made.length) {
+    state.lastBatch = { at: Date.now(), total, decks: made.map((r) => r.deck), manual: !!force };
+    kvSet('state', state);
+  }
   if (made.length && !force) {
-    const total = made.reduce((n, r) => n + r.added, 0);
     const list = made.map((r) => `${r.deck} (+${r.added})`).join('\n');
     try {
       CapacitorNotifications.schedule([{
@@ -145,9 +151,28 @@ async function work(force, only) {
   return out;
 }
 
+/** Remember each background wake-up, so the app can show whether Android really runs this. */
+function noteWake(out, err) {
+  try {
+    const state = kvGet('state', {});
+    const now = Date.now();
+    const ran = (out && out.ran) || [];
+    const did = err ? `error: ${String((err && err.message) || err).slice(0, 120)}`
+      : out && out.skipped ? out.skipped
+      : ran.length ? `${ran.length} unit${ran.length === 1 ? '' : 's'}, +${ran.reduce((n, r) => n + (r.added || 0), 0)} cards`
+      : 'nothing due';
+    state.wake = { at: now, did };
+    if (!(out && out.skipped === 'not night')) state.lastNight = { at: now, did };
+    kvSet('state', state);
+  } catch (e) { console.warn('noteWake', e); }
+}
+
 // Android wakes us about once an hour
 addEventListener('nightCards', async (resolve, reject) => {
-  try { await work(false); resolve(); } catch (e) { console.error(e); resolve(); }
+  let out = null, err = null;
+  try { out = await work(false); } catch (e) { err = e; console.error(e); }
+  noteWake(out, err);
+  resolve();
 });
 
 // The app hands over settings and the prepared units
@@ -155,7 +180,9 @@ addEventListener('prepare', (resolve, reject, args) => {
   try {
     if (args && args.cfg) kvSet('cfg', args.cfg);
     if (args && args.jobs) kvSet('jobs', args.jobs);
-    resolve({ ok: true, state: kvGet('state', {}), waiting: kvGet('results', []).length });
+    const state = kvGet('state', {});
+    if (!state.since) { state.since = Date.now(); kvSet('state', state); }
+    resolve({ ok: true, state, waiting: kvGet('results', []).length });
   } catch (e) { reject(e); }
 });
 

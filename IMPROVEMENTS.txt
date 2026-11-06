@@ -1,0 +1,137 @@
+STUDYHUB IMPROVEMENT LIST
+=========================
+Started 2026-11-06. We work through these one at a time.
+Mark each item when it's done: [ ] to do   [~] in progress   [x] done   [-] skipped
+Suggested order: 1, 2, 8, 9, 12 first (small, and you notice them right away).
+
+
+PART A: SMALL CHANGES
+---------------------
+
+Speed
+[ ] 1. Load KaTeX only when it's needed
+       index.html:25 and :169 load the maths library (~270 KB) every time the app opens.
+       Load it with the first formula instead. ~5 lines. Faster start-up.
+
+[ ] 2. Add `defer` to the <script> tags
+       index.html:170-187 has 18 scripts that hold up drawing the page. Make sure the
+       order still holds and that main.js still runs last.
+
+[ ] 3. Load vendor files straight from the cache (laptop browser)
+       sw.js checks the network for every file and waits up to 4 s each time. The vendor/
+       files (pdf.js, KaTeX, Office viewers) never change, so serve them straight from the cache.
+
+[ ] 4. Update the service-worker cache version automatically
+       sw.js:5 has CACHE = 'studyhub-v23', which is changed by hand. If it's forgotten, the
+       browser keeps showing old files. Let build-android.sh / run.sh set it from the file timestamps.
+
+[ ] 5. Resume interrupted downloads (HTTP Range)
+       serve.py:259 always sends a file from the beginning. If the hotspot drops halfway
+       through the 52 MB STAT notes, the download starts again from zero. About 15 lines in
+       serve.py plus a few in sync.js.
+
+[ ] 6. Compress sync replies (gzip)
+       db.json (62 KB and growing) goes over the hotspot uncompressed on every sync.
+
+[ ] 7. Redraw less every minute
+       app.js:988 rebuilds the whole screen once a minute. Update only the clock and countdown text.
+
+Reliability
+[ ] 8. Force the hub file onto the disk before swapping it in
+       serve.py:71 _save() writes a temp file and swaps it in, but never forces the data
+       onto the disk first. Add f.flush() + os.fsync() so a power cut can't leave an empty db.json.
+
+[ ] 9. Warn when the laptop server is out of date
+       The server notes its own code's timestamp when it starts. If the .py files change
+       later, the Sync panel says "Laptop server is out of date, restart it".
+
+[ ] 10. Warn when the phone is low on space
+       Low storage is what wiped the data before. Warn when the phone has under ~3 GB free.
+
+[ ] 11. Retry a failed first sync automatically
+       One timeout over the hotspot happens now and then. Retry once after ~2 s before showing an error.
+
+Features
+[x] 12. Show when the nightly cards last ran   (done 2026-11-06; APK built, not yet on the phone)
+       Flashcards tab: "Nightly cards: last ran Thu 03:12 · 24 cards", or "never ran:
+       check Battery → Unrestricted". Shows if Samsung is blocking the job.
+
+[ ] 13. Offer app updates over Wi-Fi
+       The phone compares its version with dist/StudyHub.apk on the laptop and shows
+       "Update available: tap to install". No more USB installs or typing in the IP address.
+
+[ ] 14. Keep the Groq model name in one place
+       It's written separately in askai.py:52 and www/askai.js. Groq changes its models often,
+       so one config entry means one edit.
+
+Project upkeep
+[ ] 15. Commit after each feature
+       Git has everything in one "Initial commit". One commit per item on this list
+       makes it easy to undo a single change.
+
+[ ] 16. Add two small tests
+       SyncHub.merge (sync conflicts and deletions) and the formula/formatting renderer.
+       Those two areas have broken the most so far.
+
+
+PART B: MAJOR UPDATE (new look and behaviour)
+---------------------------------------------
+Bigger work, done in stages. Agree on a design first (mock-ups), then build it piece by piece.
+What's there now: a slide-in drawer (index.html:97), themes light / dark / black / sepia
+plus "follow the phone", quick notes that can hold todos, and Android notification
+channels for ring / vibrate / silent alerts (native.js:28-34).
+
+[ ] 17. New sidebar (drawer): looks and behaviour
+       - Redesign: section groups (Today, Study, Plan, Tools), icons with labels,
+         the active tab highlighted, unit colour dots, and a small profile/status header
+         (sync state, next class).
+       - Behaviour: open by swiping from the left edge as well as with the button, follow the
+         finger while dragging, close with a swipe or Back, and add a smooth animation and a
+         slight dim/blur behind it.
+       - Long-press an item for shortcuts (e.g. long-press Files → upload).
+       - Optional: a bottom tab bar for the 4 most-used screens, with the drawer for the rest.
+
+[ ] 18. More themes
+       - New themes, e.g. Ocean, Forest, Rose, Nord, Solarized, high-contrast.
+       - A separate accent colour picker (accents already have dark and light shades in style.css).
+       - Option: colour the app by the unit you're viewing.
+       - The live preview in the theme picker stays.
+
+[ ] 19. Automatic theme by time of day
+       - A new mode: light theme during the day, dark (or black) at night, switching at
+         times you choose (e.g. 06:30 / 19:00), or at sunrise and sunset.
+       - Pick which theme to use for day and which for night.
+       - It has to switch while the app is open, not only when it starts.
+         The pre-paint script in index.html:16-24 needs the same rule so the colours don't flash.
+
+[ ] 20. A proper to-do list
+       - Its own screen (today only quick notes can hold todos). Tasks have a due date/time,
+         a priority, a unit, and subtasks / checklist items.
+       - Smart lists: Today, Upcoming, Overdue, per unit, Done.
+       - Links: turn a quick note into a task, create study tasks from a deadline or exam
+         ("revise ch. 3 before CAT 2"), and show tasks on the Today screen.
+       - Repeating tasks (daily / weekly), swipe to finish or postpone, drag to reorder.
+       - Reminders through the existing notification system. Syncs with the laptop
+         (a new 'tasks' store in SYNC_STORES in serve.py and in the app's database).
+       - Later: AI breaks a big task into steps; streaks and a progress ring.
+
+[ ] 21. Better system notifications
+       - Notifications that look the part: unit colour, large icon, room and lecturer in the
+         expanded view, a progress bar for "class starts in 10 min".
+       - Action buttons: "Snooze 5 min", "Mark done" (tasks/deadlines), "Open notes"
+         for the class.
+       - Group notifications by type (classes / deadlines / flashcards) so they don't pile up.
+       - Optional: a full-screen alarm-style alert for exams.
+       - Note: Android channels can't be changed once created, so new behaviour needs new
+         channel ids (native.js:25-26).
+
+[ ] 22. New app icon
+       - A new design (2-3 options to choose from), as an adaptive icon (foreground +
+         background), plus a matching monochrome icon for Android 13+ themed icons.
+       - Update the notification icon (ic_stat_studyhub), the PWA icons (www/icons/) and the
+         splash screen to match.
+       - Optional: icons you can switch between in Settings (activity-alias).
+
+[ ] 23. General UI polish (to be filled in along the way)
+       - Consistent spacing and type sizes, smoother screen changes, haptic feedback on
+         key actions, better empty states, and screens with lots of buttons tidied up.

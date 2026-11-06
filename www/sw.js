@@ -2,7 +2,7 @@
 // Bump CACHE when you change files.
 importScripts('shared.js');
 
-const CACHE = 'studyhub-v23';
+const CACHE = 'studyhub-v24';
 const ASSETS = [
   './', 'index.html', 'style.css',
   'shared.js', 'native.js', 'vault.js', 'app.js', 'timetable.js', 'alerts.js', 'files.js', 'office.js', 'examdates.js', 'reminders.js', 'sync.js', 'aicards.js', 'exams.js', 'crop.js', 'askai.js', 'nightcards.js', 'main.js',
