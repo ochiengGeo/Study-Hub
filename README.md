@@ -1,10 +1,16 @@
 # StudyHub
 
-A personal study app for your phone (PWA): timetable with cancellations,
-attendance and class alerts; deadlines; flashcards with spaced repetition;
-a study-files library with a built-in PDF viewer; and quick notes.
-Plain HTML/CSS/JS, no build step. All data stays on the device (IndexedDB),
-so use **⋯ → Export backup** now and then.
+A study app for your phone: an Android app (also runs in a browser) with a timetable
+(cancellations, attendance, class alerts), deadlines, Exams & CATs with countdowns, flashcards with
+spaced repetition, a study-files library that opens PDFs, slides and Word files, and quick notes.
+Gemini adds AI flashcards from your unit notes, practice exams that it marks, and Ask AI for photos
+of what you're stuck on. Your laptop is the sync hub, and **Share nearby** sends files and decks
+to friends' phones over Wi-Fi or a hotspot.
+
+Plain HTML/CSS/JS, no build step; the Android app wraps the same files with Capacitor.
+Data lives on each device (IndexedDB, plus a safe copy in the Android app's private folder) and
+syncs through the laptop, which keeps daily backups. **☰ → Settings & backup → Export backup**
+saves a JSON copy of everything except file contents.
 
 ## Layout
 ```
@@ -12,21 +18,28 @@ www/                 the app itself (HTML/CSS/JS). Edit things here.
   index.html style.css
   shared.js          database + file auto-sorting (page and service worker)
   native.js          Android-only features (alarms, share, open-with)
+  vault.js           Android: file contents + a copy of every record in the app's private folder
   app.js             core: state, Today, deadlines, cards, notes, themes, settings
   timetable.js       classes, cancellations, attendance, week grid, .ics export
   alerts.js          class reminders
   files.js           files library + PDF viewer
+  office.js          .pptx / .docx drawn on the phone (same viewer as PDFs)
+  crop.js            pick part of a page/photo for Ask AI
   sync.js            sync with the laptop hub
   nearby.js          Share nearby: send files/decks to friends' phones over Wi-Fi/hotspot
   share-page.html    the download page a sharing phone shows friends without the app
-  aicards.js         AI flashcards panel (the cards are made on the laptop)
+  aicards.js         AI flashcards panel (cards made by the laptop, cardgen.py)
+  nightcards.js      Android: nightly AI flashcards made by the phone itself
+  runners/nightcards.js  the background job Android runs for that (about hourly)
   exams.js           practice exams: set, sit, see marked results
   examdates.js       Exams & CATs section (dates, countdowns)
   reminders.js       deadline/exam reminders + notification set-up
   askai.js           Ask AI (photos/screenshots → Gemini)
   main.js            start-up
-  sw.js manifest.json icons/ vendor/pdfjs/
-android/             generated Android project (Capacitor 8)
+  sw.js manifest.json icons/
+  vendor/            pdfjs/ katex/ (maths) office/ (slides + Word) qr/ (Share nearby QR codes)
+android/             Android project (Capacitor 8). Generated, plus our own code in
+                     app/src/main/java/com/studyhub/app/ (Share nearby server) and AndroidManifest.xml
 serve.py  run.sh     server + sync hub (keeps its copy in sync-data/)
 cardgen.py           makes AI flashcards from unit notes with Gemini (used by serve.py)
 exams.py             writes and marks practice exams with Gemini (used by serve.py)
@@ -41,13 +54,14 @@ build-android.sh     builds dist/StudyHub.apk
 ~/linux-lab/projects/studyhub/run.sh          # laptop only, opens the browser
 ~/linux-lab/projects/studyhub/run.sh phone    # also prints an address for your phone (same Wi-Fi)
 ```
-Over Wi-Fi the phone uses plain http, so alerts, offline mode and sharing are off.
-Everything else works. Use HTTPS hosting (below) for the full app on the phone.
+Over Wi-Fi a phone *browser* uses plain http, so alerts, offline mode and "Share → StudyHub" are
+off there. Everything else works. On the phone, use the Android app (below) for the full app.
 Don't open `index.html` by double-clicking it. Run as a local file, the app loses
 offline support, notifications and the PDF viewer.
 
-## Put it on your phone (GitHub Pages — free, HTTPS)
-Offline mode and "install" need HTTPS, so host it:
+## Browser version on your phone (GitHub Pages: free, HTTPS)
+The Android app (below) is the main way to use StudyHub on a phone. For a browser-only install
+(e.g. on an iPhone), offline mode and "install" need HTTPS, so host it:
 1. Create a GitHub repo (e.g. `studyhub`) and push these files to it.
 2. Repo → Settings → Pages → Source: *Deploy from a branch* → `main` / root.
 3. Open `https://<username>.github.io/studyhub/` on your phone.
@@ -55,25 +69,25 @@ Offline mode and "install" need HTTPS, so host it:
    **iPhone (Safari):** Share → *Add to Home Screen*.
 
 ## Updating
-After changing files, bump `CACHE` in `sw.js` (e.g. `studyhub-v2`) and push.
-The phone picks up the new version on the next launch (sometimes the one after).
+- **Android app:** `./build-android.sh`, then install the new `dist/StudyHub.apk` over the old one.
+- **Browser version:** after changing files, bump `CACHE` in `sw.js` (now `studyhub-v25`) and push.
+  Browsers pick up the new version on the next launch (sometimes the one after).
+- The laptop server serves `www/` fresh on every request; restart `./run.sh` after changing the `.py` files.
 
 ## Card formatting
-`` `inline code` ``, ```` ```code blocks``` ````, `**bold**`.
+Cards (and AI answers) understand Markdown: `**bold**`, `*italic*`, `` `inline code` ``,
+```` ```code blocks``` ````, headings, bullet/numbered lists, `> quotes` and `| tables |`, plus maths
+in LaTeX (`$…$`, `$$…$$`, `\(…\)`, `\[…\]`, drawn with KaTeX).
 Desktop review shortcuts: **Space** = show answer, **1–4** = Again/Hard/Good/Easy.
 
-## About alerts
-Alerts fire while StudyHub is open or running in the background. A web app
-can't wake itself once it's fully closed, so for guaranteed reminders use
-**⋯ → Add timetable to phone calendar**. That exports `timetable.ics` with a
-reminder before every class, and the phone's calendar handles it from there.
-
 ## Getting files in
-- **Notes → Files → Add files** (pick several at once), or **Board photo**.
+- **Notes → Files → Add files** (pick several at once), or **📷 Board photo**.
   A board photo gets tagged with whatever class is on right now.
-- After installing on Android: **Share → StudyHub** from WhatsApp/Files/Drive.
+- Android: **Share → StudyHub** from WhatsApp/Files/Drive.
+- From a friend: **☰ → 📥 Receive from a friend** (see *Share nearby*).
+- Files from your other devices come through sync (⬇ to download them here).
 - Files are sorted using the file name (`CSC311_lec4.pdf` → CSC 311 · Lecture notes).
-  You can fix anything in the file's ⋯ Details.
+  You can fix anything in the file's ⋯ Details. ★ Star the important ones for exams.
 
 ## Android app
 ```bash
@@ -82,11 +96,18 @@ reminder before every class, and the phone's calendar handles it from there.
 ```
 On the phone: allow your browser to "install unknown apps" when asked, then install.
 To update later, build again and install over the top: your data stays.
+Android / Play Protect warns that the app may be harmful. That's because it's a debug build signed
+with this laptop's automatic "Android Debug" key, installed from outside the Play Store, not
+because of anything the app does. Tap *More details → Install anyway*. Updates only install over
+the top when they're built on this same laptop (the key is `~/.android/debug.keystore`).
 The phone's Back button steps back inside the app (closes what's open, leaves a deck/review/paper,
 returns to Today); on Today it asks you to press Back again to exit.
 
-The Android app keeps its own data, separate from the browser version.
-Move it with ☰ → Settings & backup → Export, then Import in the app.
+The Android app keeps its own data, separate from the browser version (sync both with the laptop,
+or move it with ☰ → Settings & backup → Export, then Import in the app).
+Android's WebView may delete an app's web data when the phone runs low on space, so the app also
+keeps file contents and a copy of every record in its own private folder (`vault.js`). If the
+database is ever found empty, it refills itself from that copy (you'll see "♻️ Restored …").
 
 Toolchain (installed in your home folder, no sudo): Node in `~/.local/opt/node`,
 Android SDK in `~/Android/Sdk`, JDK 21 from the system.
@@ -101,7 +122,10 @@ The laptop server is the hub; every device syncs with it.
 
 - First sync merges both sides; nothing is lost. If the same item was edited on
   both devices, the most recent edit wins. Deletions sync too.
-- Files (PDFs, photos) are copied across as well. Until a file's contents arrive it shows ⏳.
+- Files: the list syncs straight away and each file's contents are uploaded to the laptop, but a
+  device downloads a file only when you ask: tap ⬇ on it (or *Download all* on a unit) in Files.
+  Until then it shows *Not downloaded*. ⋯ Details → *Remove download* frees the space on that device
+  again (the laptop keeps its copy).
 - `sync-data/` holds the hub's copy of everything: a free backup. Keep it.
   The pairing code is in `sync-data/pairing-code`; delete that file and restart to get a new one.
 - The laptop's Wi-Fi address can change (it did during development: 192.168.1.19 → 192.168.114.42).
@@ -129,8 +153,9 @@ Send study files and flashcard decks straight from your phone to friends' phones
 ## AI flashcards from your unit notes
 The laptop makes flashcards for each unit with Google Gemini and they sync to the phone
 like everything else (`cardgen.py`, run by `serve.py`).
-- **Notes used:** synced files filed as **Lecture notes** or **Books** with a unit set
-  (e.g. COMP 226). PDFs (scanned ones too), photos, text. Fix a file's type/unit in its ⋯ Details.
+- **Notes used:** synced files filed as **Lecture notes**, **Books** or **Slides** with a unit set
+  (e.g. COMP 226). PDFs (scanned ones too), slides/Word (via LibreOffice), photos, text.
+  Fix a file's type/unit in its ⋯ Details.
 - **Weekly:** while `./run.sh` is running, each unit gets up to 12 new cards once a week from the
   *next* 25 pages of its notes (12 for scanned notes), so it works through them week by week and
   starts over when done. Small batches keep it inside Google's free limits.
@@ -148,6 +173,17 @@ like everything else (`cardgen.py`, run by `serve.py`).
 - State and history: `sync-data/cardgen.json`. The model switches itself to the newest
   Gemini Flash if the current one is retired.
 
+### Nightly cards on the phone (no laptop needed)
+The Android app can make the weekly cards itself: Flashcards → **🌙 Nightly cards on this phone**.
+- Needs a Gemini key on the phone (Settings → Ask AI) and the unit's notes downloaded on the phone.
+- While you use the app it prepares each unit's next pages; at night (1–6 am by default, you can
+  pick the window) Android's background job sends them to Gemini and posts a notification. The
+  cards are added when you next open the app, and sync takes them to the laptop.
+- A unit is skipped in a week it already got AI cards (from the laptop or the phone), so nothing doubles.
+- The Flashcards tab shows when it last ran. "Never ran" usually means the phone's battery saving
+  stops it: Settings → Apps → StudyHub → Battery → **Unrestricted**.
+- **✨ Make this week's cards now** runs it straight away.
+
 ## Exams & CATs
 ☰ → **Exams & CATs**: add each CAT / main exam / practical with date, time, length, venue and
 topics. Countdown, a 🃏 Revise button for the unit's flashcards and 📝 Practice paper. Today shows
@@ -160,17 +196,23 @@ battery setting some phones need (Tecno/Infinix/Xiaomi…: Settings → Apps →
 Unrestricted). Class alerts, deadline reminders (1 day + 2 hours before) and exam reminders are all
 handed to Android, so they arrive with the app closed. Today shows 🔕 if notifications are blocked.
 Settings → Alerts & reminders has the switches and a test alert.
+In a browser, alerts only fire while StudyHub is open. For reminders there, use
+**☰ → 📅 Add timetable to phone calendar**: it exports `timetable.ics` with a reminder before every
+class, and the phone's calendar handles it from there.
 
 ## Slides & Word files
-Tap a .pptx/.ppt/.docx → **📖 View in StudyHub**: the laptop converts it to PDF (LibreOffice) and
-it opens in the built-in viewer; the copy stays on the phone, so next time it opens offline.
-Files filed as **Slides** are also used for AI flashcards and practice exams.
+- **.pptx / .docx** open right on the phone, in the same viewer as PDFs: offline, no laptop needed
+  (`office.js`; it also draws the old Windows WMF/EMF pictures lecturers' diagrams often use).
+- **Old .ppt / .doc**: tap **📖 View in StudyHub** and the laptop converts it to PDF (LibreOffice);
+  the PDF copy stays on the phone, so next time it opens offline.
+- Anything else: **↗ Open in another app** (WPS, Word, Google Docs…).
+- Files filed as **Slides** are also used for AI flashcards and practice exams.
 
 ## Ask AI
 ☰ → **Ask AI**: snap a photo or pick a screenshot of the notes / question you're stuck on, add a
 question, choose 💡 Hint me (guides without giving it away), 📖 Explain, 🧮 Solve or ✅ Check mine
 (marks your working). Follow-up questions keep the context. In the PDF viewer, **✨ Ask** sends
-the page you're on. Route: with a Gemini key in the phone's Settings → Ask AI it talks to Google
+the page you're on, and on photos you can drag a box to ask about just one part. Route: with a Gemini key in the phone's Settings → Ask AI it talks to Google
 directly (works anywhere with internet); without one it goes through the laptop. The phone's key
 is kept only on the phone (not synced, not in backups).
 
@@ -188,6 +230,13 @@ Flashcards → 📝 **Practice exams**. Pick a unit (or one notes file) and a le
 - **🃏 Turn weak questions into flashcards** adds every question you scored under 60% on.
 - Model answers stay hidden on the laptop until the paper is marked.
 - Needs the laptop running (same Wi-Fi or Tailscale). Papers live in `sync-data/exams/`.
+
+## Themes & settings
+- **☰ → 🎨 Theme:** Auto (follows the phone), Light, Dark, Black (OLED) or Sepia, plus an accent
+  colour, with a live preview.
+- **☰ → ⚙️ Settings & backup:** class alert defaults and a test alert, notification set-up, the
+  phone's Gemini key (Ask AI), storage used, **Export / Import backup** (JSON; file contents aren't
+  included) and *Delete all data*.
 
 ## Backups
 `serve.py` saves a snapshot of `sync-data/` when it starts and every day it runs, to
