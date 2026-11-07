@@ -517,6 +517,7 @@ function deckView(deck) {
     <div class="row" style="margin-bottom:12px">
       <button class="btn" data-action="close-deck">← Decks</button>
       <button class="btn primary grow" data-action="start-review" data-deck="${esc(deck)}" ${d ? '' : 'disabled'}>${d ? `Review ${d} due` : 'Nothing due'}</button>
+      ${typeof NEARBY !== 'undefined' && NEARBY ? `<button class="btn" data-action="share-deck" data-deck="${esc(deck)}" title="Send this deck to friends nearby" aria-label="Share deck nearby">📡</button>` : ''}
       ${course ? `<button class="btn" data-action="ai-generate" data-course="${esc(course)}" ${aiWatch ? 'disabled' : ''} title="Ask the laptop for more AI cards from this unit's notes">✨ More</button>` : ''}
     </div>
     ${cs.map((c) => `

@@ -45,6 +45,7 @@ function onDBBlocked() {
   if (NATIVE) {
     // Android app: files ship inside the app, so no service worker (it could serve stale copies after an update).
     await nativeSetup();
+    nearbyStartup();   // "Open in StudyHub" links from a friend's share page
     nativeSyncAlerts();
     document.addEventListener('visibilitychange', () => { if (!document.hidden) nativeSyncAlerts(); });
   } else if ('serviceWorker' in navigator) {

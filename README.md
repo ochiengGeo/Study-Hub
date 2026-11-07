@@ -17,6 +17,8 @@ www/                 the app itself (HTML/CSS/JS). Edit things here.
   alerts.js          class reminders
   files.js           files library + PDF viewer
   sync.js            sync with the laptop hub
+  nearby.js          Share nearby: send files/decks to friends' phones over Wi-Fi/hotspot
+  share-page.html    the download page a sharing phone shows friends without the app
   aicards.js         AI flashcards panel (the cards are made on the laptop)
   exams.js           practice exams: set, sit, see marked results
   examdates.js       Exams & CATs section (dates, countdowns)
@@ -104,6 +106,25 @@ The laptop server is the hub; every device syncs with it.
   The pairing code is in `sync-data/pairing-code`; delete that file and restart to get a new one.
 - The laptop's Wi-Fi address can change (it did during development: 192.168.1.19 → 192.168.114.42).
   If the phone can't reach it, check the address on the laptop and update it in the phone app.
+
+## Share nearby (with friends, no laptop needed)
+Send study files and flashcard decks straight from your phone to friends' phones over Wi-Fi.
+- **Send:** ☰ → **📡 Share nearby** (or 📡 Nearby on a file, 📡 in a deck). Tick whole units, decks or
+  single files → **Start sharing**. The phone shows a QR code, an address (e.g. `192.168.43.1:8765`)
+  and a 4-digit PIN. Keep that screen open; it stays awake while friends download.
+- **Receive:** ☰ → **📥 Receive from a friend** → 📷 Scan (or type the address + PIN), tick what you
+  want, ⬇ Get. Files arrive sorted by unit and type; decks arrive as new cards on *your* schedule.
+  Things you already have are left unticked. A dropped download carries on where it stopped.
+- **No StudyHub?** Friends can scan the QR with their camera or open the address in any browser and
+  download the files from a simple page (flashcards need the app; on Android it offers *Open in StudyHub*).
+- **Network:** same Wi-Fi, or no router at all: turn on your hotspot and have friends join it.
+  Some campus/guest Wi-Fi blocks phones from talking to each other; use the hotspot then.
+- **Safety:** read-only (nobody can put anything on your phone), PIN required, locks after 20 wrong
+  PINs, stops when you tap Stop or after 15 minutes with no downloads. Received items are your own
+  copies; they sync to your laptop like anything else you add.
+- Sending needs the Android app (a browser can't accept connections). Receiving works in the app
+  and in the laptop browser (`./run.sh`). Code: `www/nearby.js`, `www/share-page.html`,
+  `android/app/src/main/java/com/studyhub/app/ShareServer.java` + `NearbySharePlugin.java`.
 
 ## AI flashcards from your unit notes
 The laptop makes flashcards for each unit with Google Gemini and they sync to the phone

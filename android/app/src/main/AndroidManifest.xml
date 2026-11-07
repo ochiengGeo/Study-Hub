@@ -24,6 +24,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Share nearby: a friend's download page opens studyhub://receive?a=IP:PORT&k=PIN -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="studyhub" android:host="receive" />
+            </intent-filter>
+
         </activity>
 
         <provider

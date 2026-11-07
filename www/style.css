@@ -674,3 +674,32 @@ button.class-card + .item, .item + button.class-card { margin-top: 8px; }
 .rich table { border-collapse: collapse; font-size: 0.9em; }
 .rich th, .rich td { border: 1px solid var(--border); padding: 4px 8px; text-align: center; }
 .rich th { background: var(--surface-2); }
+
+/* ---------- Share nearby (nearby.js) ---------- */
+.share-sep { margin: 18px 2px 6px; }
+.share-pick { display: flex; gap: 12px; align-items: center; padding: 10px 4px; border-top: 1px solid var(--border); cursor: pointer; }
+.share-pick input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.share-pick .t { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.share-pick .m { display: block; color: var(--muted); font-size: 0.8rem; margin-top: 1px; }
+.share-pick.have .t { color: var(--muted); }
+.share-group { margin: 4px 0; }
+.share-group > summary { padding: 10px 4px; cursor: pointer; }
+.share-group .share-pick { padding-left: 14px; }
+.share-group.recv { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 4px 10px; margin: 10px 0; }
+.share-group.recv .share-pick { padding-left: 4px; }
+.share-unit { display: flex; gap: 10px; align-items: center; padding: 10px 4px; cursor: pointer; }
+.share-unit input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.share-unit .pill { margin-left: auto; background: var(--surface-2); color: var(--muted); }
+.share-foot { position: sticky; bottom: calc(-18px - env(safe-area-inset-bottom)); background: var(--surface); padding-bottom: calc(env(safe-area-inset-bottom) + 18px) !important; padding-top: 12px; margin-top: 8px; border-top: 1px solid var(--border); }
+.share-foot .small { margin: 0 2px 8px; }
+.share-live { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.share-live .pair { flex: 1; min-width: 180px; }
+/* the QR stays black on white in every theme, so any camera reads it */
+.share-qr { background: #fff; border-radius: 12px; padding: 8px; width: 168px; height: 168px; flex: none; display: grid; place-items: center; }
+.share-qr svg { width: 100%; height: 100%; display: block; }
+.share-log { margin-top: 8px; max-height: 160px; overflow-y: auto; font-size: 0.85rem; }
+.share-log-row { padding: 3px 0; }
+.qr-scan { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 1; max-height: 60vh; margin: 0 auto; }
+.qr-scan video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.qr-frame { position: absolute; inset: 18%; border: 3px solid rgba(255, 255, 255, 0.85); border-radius: 16px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.35); }
+@media (max-width: 380px) { .share-live { justify-content: center; } }

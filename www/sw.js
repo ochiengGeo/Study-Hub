@@ -2,10 +2,10 @@
 // Bump CACHE when you change files.
 importScripts('shared.js');
 
-const CACHE = 'studyhub-v24';
+const CACHE = 'studyhub-v25';
 const ASSETS = [
   './', 'index.html', 'style.css',
-  'shared.js', 'native.js', 'vault.js', 'app.js', 'timetable.js', 'alerts.js', 'files.js', 'office.js', 'examdates.js', 'reminders.js', 'sync.js', 'aicards.js', 'exams.js', 'crop.js', 'askai.js', 'nightcards.js', 'main.js',
+  'shared.js', 'native.js', 'vault.js', 'app.js', 'timetable.js', 'alerts.js', 'files.js', 'office.js', 'examdates.js', 'reminders.js', 'sync.js', 'nearby.js', 'aicards.js', 'exams.js', 'crop.js', 'askai.js', 'nightcards.js', 'main.js',
   'manifest.json', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png',
   'vendor/capacitor.js', 'vendor/katex/katex.min.js', 'vendor/katex/katex.min.css', 'vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
   'vendor/office/pptx-preview.umd.js', 'vendor/office/docx-preview.min.js', 'vendor/office/jszip.min.js',

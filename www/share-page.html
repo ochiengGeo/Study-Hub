@@ -1,0 +1,110 @@
+<!doctype html>
+<!-- Served by the SENDING phone during "Share nearby" (ShareServer.java), for friends who open the
+     link or QR code in a browser instead of the StudyHub app. Self-contained: no other files. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StudyHub share</title>
+<style>
+  :root { --bg: #f6f7fb; --card: #fff; --text: #141826; --muted: #687087; --accent: #6366f1; --border: #e3e6ef; --red: #dc2626; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b1020; --card: #151b2e; --text: #e8eaf3; --muted: #9aa3bd; --border: #262e47; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 1.35rem; margin: 6px 0 2px; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 14px; }
+  .btn { display: inline-block; border: 0; border-radius: 10px; padding: 11px 16px; font: inherit; font-weight: 600; background: var(--accent); color: #fff; text-decoration: none; cursor: pointer; }
+  .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+  input { font: inherit; font-size: 1.4rem; letter-spacing: .3em; text-align: center; width: 9ch; padding: 8px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+  h2 { font-size: 1rem; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+  .row { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--border); }
+  .row:first-of-type { border-top: 0; }
+  .row .grow { flex: 1; min-width: 0; }
+  .name { font-weight: 600; overflow-wrap: anywhere; }
+  .tag { font-size: .7rem; font-weight: 700; padding: 3px 6px; border-radius: 6px; background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+  .err { color: var(--red); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div class="muted">📡 StudyHub · Share nearby</div>
+  <h1 id="title">Files from a friend</h1>
+  <div id="sub" class="muted">Connecting…</div>
+
+  <form id="pinForm" class="card hidden">
+    <p style="margin-top:0">Enter the 4-digit PIN shown on your friend's phone.</p>
+    <input id="pin" inputmode="numeric" maxlength="4" autocomplete="off" autofocus>
+    <button class="btn">Open</button>
+    <p id="pinErr" class="err hidden"></p>
+  </form>
+
+  <div id="app" class="card hidden">
+    <p style="margin-top:0"><b>Have StudyHub?</b> Get everything sorted into your library, flashcards included.</p>
+    <a id="appLink" class="btn">Open in StudyHub</a>
+  </div>
+
+  <div id="list"></div>
+  <p class="muted" style="margin-top:22px">This link only works while your friend keeps the Share screen open, on the same Wi-Fi or hotspot.</p>
+</main>
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const size = (b) => b < 1048576 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1048576).toFixed(1)} MB`;
+let pin = (new URLSearchParams(location.hash.slice(1)).get('k') || '').trim();
+
+async function load() {
+  if (!pin) return askPin();
+  const r = await fetch('/api/manifest', { headers: { 'X-Share-Pin': pin } }).catch(() => null);
+  if (!r) { $('#sub').textContent = "Can't reach your friend's phone any more."; return; }
+  if (r.status === 401) return askPin('Wrong PIN, try again.');
+  if (!r.ok) { $('#sub').textContent = r.status === 403 ? 'This share is locked (too many wrong PINs).' : `Error ${r.status}`; return; }
+  $('#pinForm').classList.add('hidden');
+  show(await r.json());
+}
+
+function askPin(msg) {
+  $('#sub').textContent = '';
+  $('#pinForm').classList.remove('hidden');
+  $('#pinErr').textContent = msg || '';
+  $('#pinErr').classList.toggle('hidden', !msg);
+  $('#pin').focus();
+}
+$('#pinForm').addEventListener('submit', (e) => { e.preventDefault(); pin = $('#pin').value.trim(); history.replaceState(null, '', `#k=${pin}`); load(); });
+
+function show(m) {
+  $('#title').textContent = `From ${m.from || 'a friend'}`;
+  const files = m.files || [], decks = m.decks || [];
+  $('#sub').textContent = [files.length && `${files.length} file${files.length === 1 ? '' : 's'} · ${size(files.reduce((n, f) => n + (f.size || 0), 0))}`,
+    decks.length && `${decks.length} flashcard deck${decks.length === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
+  // "Open in StudyHub" on Android: an intent link to the app (falls back to nothing if it isn't installed)
+  if (/Android/i.test(navigator.userAgent)) {
+    const q = `a=${encodeURIComponent(location.host)}&k=${encodeURIComponent(pin)}`;
+    $('#appLink').href = `intent://receive?${q}#Intent;scheme=studyhub;package=com.studyhub.app;end`;
+    $('#app').classList.remove('hidden');
+  }
+  const groups = new Map();
+  for (const f of files) {
+    const k = f.course || 'Other files';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(f);
+  }
+  const link = (f) => `/f/${f.t}/${encodeURIComponent(f.name)}?k=${encodeURIComponent(pin)}&dl=1`;
+  $('#list').innerHTML = [...groups].map(([k, fs]) => `
+    <section class="card"><h2>${esc(k)} <span class="muted">${fs.length}</span></h2>
+      ${fs.map((f) => `<div class="row"><span class="tag">${esc((f.ext || 'file').toUpperCase().slice(0, 4))}</span>
+        <div class="grow"><div class="name">${esc(f.name)}</div><div class="muted">${esc(f.category || '')} · ${size(f.size || 0)}</div></div>
+        <a class="btn ghost" href="${link(f)}" download="${esc(f.name)}">⬇</a></div>`).join('')}
+    </section>`).join('') + (decks.length ? `
+    <section class="card"><h2>🃏 Flashcard decks</h2>
+      ${decks.map((d) => `<div class="row"><div class="grow"><div class="name">${esc(d.name)}</div><div class="muted">${(d.cards || []).length} cards</div></div></div>`).join('')}
+      <p class="muted" style="margin-bottom:0">Flashcards need the StudyHub app: ${/Android/i.test(navigator.userAgent) ? 'tap "Open in StudyHub" above.' : 'open this share from the app (☰ → Receive from a friend).'}</p>
+    </section>` : '');
+}
+load();
+</script>
+</body>
+</html>

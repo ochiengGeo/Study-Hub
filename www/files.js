@@ -308,6 +308,7 @@ function fileActions(f, primaryOpen = false) {
   return `<div class="row wrap" style="margin-top:12px">
     <button class="btn ${primaryOpen ? 'primary' : ''}" data-action="file-download" data-id="${f.id}">↗ Open in another app</button>
     <button class="btn" data-action="file-share" data-id="${f.id}">Share</button>
+    ${typeof NEARBY !== 'undefined' && NEARBY ? `<button class="btn" data-action="share-file" data-id="${f.id}" title="Send to friends nearby (same Wi-Fi or your hotspot)">📡 Nearby</button>` : ''}
     <span class="grow"></span>
     <button class="btn" data-action="file-details" data-id="${f.id}">Details</button>
   </div>`;

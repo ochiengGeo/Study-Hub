@@ -64,6 +64,11 @@ Features
        It's written separately in askai.py:52 and www/askai.js. Groq changes its models often,
        so one config entry means one edit.
 
+[~] 24. Share nearby with friends   (built 2026-11-07; APK built, not yet tried on two phones)
+       ☰ → Share nearby: the phone serves chosen files / decks / whole units over Wi-Fi or its
+       hotspot (QR + 4-digit PIN). ☰ → Receive from a friend: scan, tick, download. Browser page
+       for friends without the app. See README "Share nearby".
+
 Project upkeep
 [ ] 15. Commit after each feature
        Git has everything in one "Initial commit". One commit per item on this list
